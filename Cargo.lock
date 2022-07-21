@@ -2056,6 +2056,8 @@ dependencies = [
  "platform-dirs",
  "reqwest",
  "rpassword 7.0.0",
+ "serde",
+ "serde_json",
  "text_io",
  "tokio",
 ]
