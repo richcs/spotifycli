@@ -9,16 +9,18 @@ impl Command {
         let command_type_string = parts.next().unwrap();
         let given_command_type = command_type_string.parse().unwrap();
         let given_args = parts.map(str::to_string).collect();
-        let command = Command {
+
+        Command {
             command_type: given_command_type,
             args: given_args,
-        };
-        command
+        }
     }
 }
 
 pub enum CommandType {
     Play,
+    Pause,
+    Stop,
     List,
     Whoami,
     Help,
@@ -31,6 +33,8 @@ impl std::str::FromStr for CommandType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "play" => Ok(CommandType::Play),
+            "pause" => Ok(CommandType::Pause),
+            "stop" => Ok(CommandType::Stop),
             "ls" | "list" => Ok(CommandType::List),
             "whoami" => Ok(CommandType::Whoami),
             "help" => Ok(CommandType::Help),
@@ -39,3 +43,9 @@ impl std::str::FromStr for CommandType {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct CommandOk {}
+
+#[derive(Debug)]
+pub struct CommandError {}

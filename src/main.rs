@@ -1,45 +1,48 @@
-use librespot::core::keymaster;
-use librespot::playback::audio_backend;
-use librespot::playback::config::{AudioFormat, PlayerConfig};
-use librespot::playback::mixer::NoOpVolume;
-use librespot::playback::player::Player;
 use librespot::{
     core::{cache::Cache, config::SessionConfig, session::Session},
     discovery::Credentials,
 };
 use std::path::Path;
 use std::process::exit;
+use std::sync::mpsc::{self, Receiver, Sender};
 
 mod command;
 mod config;
 mod fetch;
 mod input;
 mod invoke;
+mod play;
 
 use command::Command;
 use config as Config;
 use fetch::Fetcher;
 use input as Input;
 use invoke::Invoker;
+use play::{Message, Player};
 
 #[tokio::main]
 async fn main() {
+    println!("Starting up!");
     let session = create_session().await;
-    let token = keymaster::get_token(&session, Config::CLIENT_ID, Config::SCOPES)
-        .await
-        .unwrap();
     let mut fetcher = Fetcher::new();
-    fetcher.fetch_playlists(token, &session).await.unwrap();
-    let player = create_player(session);
-    let invoker = Invoker::new(player, fetcher);
+    println!("Fetching your library...");
+    fetcher.fetch_playlists(&session).await.unwrap();
+    let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
+    let _player = Player::new(session.clone(), rx);
+    let mut invoker = Invoker::new(session, fetcher, tx);
+    println!("Ready!");
     loop {
-        let input = Input::get(">>");
-        if input.trim().is_empty() {
+        let input = Input::get_with_prompt(">>");
+        if input.is_empty() {
             continue;
         }
-        
+
         let command = Command::new(input);
-        invoker.execute(command);
+        let execution_result = invoker.execute(command).await;
+        match execution_result {
+            Ok(_) => (),
+            Err(_) => (),
+        }
     }
 }
 
@@ -61,16 +64,6 @@ async fn create_session() -> Session {
     }
 }
 
-fn create_player(session: Session) -> Player {
-    let player_config = PlayerConfig::default();
-    let audio_format = AudioFormat::default();
-    let backend = audio_backend::find(None).unwrap();
-    let result = Player::new(player_config, session, Box::new(NoOpVolume), move || {
-        backend(None, audio_format)
-    });
-    result.0
-}
-
 fn get_credentials(cache: &Option<Cache>) -> Credentials {
     let credential_path_string = Config::PATH_STRING.to_owned() + Config::CREDENTIALS_FILE;
     if !Path::new(credential_path_string.as_str()).exists() {
@@ -83,7 +76,7 @@ fn get_credentials(cache: &Option<Cache>) -> Credentials {
 
 fn login_user_pass() -> Credentials {
     println!("Login to Spotify");
-    let username = Input::get("Enter Username:");
+    let username = Input::get_with_prompt("Enter Username:");
     let password = Input::get_password("Enter Password:");
     let credentials = Credentials::with_password(username, password);
     return credentials;
