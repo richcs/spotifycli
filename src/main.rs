@@ -76,7 +76,7 @@ fn get_credentials(cache: &Option<Cache>) -> Credentials {
 fn login_user_pass() -> Credentials {
     println!("Login to Spotify");
     let username = Input::get_with_prompt("Enter Username:");
-    let password = Input::get_password("Enter Password:");
+    let password = Input::get_password("Enter Password");
     let credentials = Credentials::with_password(username, password);
     return credentials;
 }
