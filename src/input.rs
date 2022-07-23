@@ -3,8 +3,7 @@ use std::io::{self, BufRead, Write};
 use text_io::read;
 
 pub fn get() -> String {
-    let stdin = io::stdin();
-    let input = stdin.lock().lines().next().unwrap().unwrap();
+    let input: String = read!("{}\n");
     input.trim().to_string()
 }
 

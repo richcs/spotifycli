@@ -83,7 +83,7 @@ impl Invoker {
     }
 
     pub fn quit(&self) {
-        println!("Quiting Spotify, goodbye cruel world...");
+        println!("Life without music is unthinkable.");
         process::exit(0);
     }
 

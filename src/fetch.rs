@@ -7,31 +7,21 @@ use librespot::{
         session::Session,
         spotify_id::{SpotifyId, SpotifyIdError},
     },
-    metadata::{Metadata, Playlist},
+    metadata::{Album, Metadata, Playlist},
 };
-use reqwest::Client;
 
 pub struct Fetcher {
-    api_client: Client,
     playlists: HashMap<String, Playlist>,
 }
 
 impl Fetcher {
-    pub fn new() -> Fetcher {
-        let fetcher = Fetcher {
-            api_client: reqwest::Client::new(),
-            playlists: HashMap::new(),
-        };
-        fetcher
-    }
-
-    pub async fn fetch_playlists(
-        &mut self,
-        session: &Session,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn new(session: &Session) -> Result<Fetcher, Box<dyn std::error::Error>> {
+        let api_client = reqwest::Client::new();
+        let mut playlists: HashMap<String, Playlist> = HashMap::new();
         let token = fetch_token(session).await;
-        let data = self
-            .api_client
+
+        // Get user's playlists
+        let data = api_client
             .get("https://api.spotify.com/v1/me/playlists?fields=items(id)")
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
@@ -41,32 +31,27 @@ impl Fetcher {
             .text()
             .await?;
 
-        let playlist_ids = serde_json::from_str::<PlaylistIds>(&data.to_owned())?;
-        for p in playlist_ids.items {
-            let playlist = self.fetch_playlist(p, session).await.unwrap();
-            self.store_playlist(playlist);
+        let playlist = serde_json::from_str::<JsonPlaylists>(&data.to_owned())?;
+        for p in playlist.items {
+            let playlist = fetch_individual::<Playlist>(p.id, session).await.unwrap();
+            playlists.insert(playlist.name.clone(), playlist);
         }
 
-        return Ok(());
-    }
+        // Get user's albums
+        let data = api_client
+            .get("https://api.spotify.com/v1/me/albums?limit=10&fields=items(album(id))")
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("Authorization", format!("Bearer {}", token.access_token))
+            .send()
+            .await?
+            .text()
+            .await?;
 
-    pub async fn fetch_playlist(
-        &self,
-        playlist_id: PlaylistId,
-        session: &Session,
-    ) -> Result<Playlist, SpotifyIdError> {
-        let playlist_id = SpotifyId::from_base62(&playlist_id.id);
-        match playlist_id {
-            Ok(spotify_id) => {
-                let playlist = Playlist::get(session, spotify_id).await.unwrap();
-                Ok(playlist)
-            }
-            Err(SpotifyIdError) => panic!(),
-        }
-    }
+        let album_ids = serde_json::from_str::<JsonAlbums>(&data.to_owned())?;
+        let fetcher = Fetcher { playlists };
 
-    pub fn store_playlist(&mut self, playlist: Playlist) {
-        self.playlists.insert(playlist.name.clone(), playlist);
+        Ok(fetcher)
     }
 
     pub fn playlists(&self) -> &HashMap<String, Playlist> {
@@ -82,12 +67,38 @@ pub async fn fetch_token(session: &Session) -> Token {
     token
 }
 
+pub async fn fetch_individual<T: Metadata>(id: String, session: &Session) -> Result<T, SpotifyIdError> {
+    let spotify_id_result = SpotifyId::from_base62(&id);
+    match spotify_id_result {
+        Ok(spotify_id) => {
+            let item = T::get(session, spotify_id).await.unwrap();
+            Ok(item)
+        }
+        Err(SpotifyIdError) => panic!(),
+    }
+}
+
 #[derive(serde::Deserialize)]
-pub struct PlaylistIds {
-    items: Vec<PlaylistId>,
+pub struct JsonPlaylists {
+    items: Vec<JsonPlaylist>,
 }
 
 #[derive(serde::Deserialize, Clone)]
-pub struct PlaylistId {
+pub struct JsonPlaylist {
+    pub id: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct JsonAlbums {
+    items: Vec<JsonWhatIsThis>,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct JsonWhatIsThis { //TODO: Hmm what to name...
+    pub album: JsonAlbum,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct JsonAlbum {
     pub id: String,
 }

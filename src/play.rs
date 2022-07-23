@@ -31,6 +31,7 @@ impl Player {
                     MessageType::AddToQueue => track_queue.push_back(message.track.unwrap()),
                     MessageType::StartPlaying => {
                         let track = message.track.unwrap();
+                        track_queue.clear();
                         player.load(track.id, true, 0);
                     }
                     MessageType::StopPlaying => {
@@ -55,11 +56,6 @@ impl Player {
 
         Player { thread }
     }
-
-    // pub fn play_next_in_queue(&self) {
-    //     let track = track_queue.pop_front().unwrap();
-    //     self.player.load(track.id, true, 0);
-    // }
 }
 
 fn create_player(session: Session) -> LibrePlayer {

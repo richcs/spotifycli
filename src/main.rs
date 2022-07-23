@@ -24,9 +24,8 @@ use play::{Message, Player};
 async fn main() {
     println!("Starting up!");
     let session = create_session().await;
-    let mut fetcher = Fetcher::new();
     println!("Fetching your library...");
-    fetcher.fetch_playlists(&session).await.unwrap();
+    let fetcher = Fetcher::new(&session).await.unwrap();
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
     let _player = Player::new(session.clone(), rx);
     let mut invoker = Invoker::new(session, fetcher, tx);
