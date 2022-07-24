@@ -1,11 +1,12 @@
-use dialoguer::FuzzySelect;
 use dialoguer::theme::ColorfulTheme;
+use dialoguer::FuzzySelect;
+use futures::executor::block_on;
 use librespot::core::session::Session;
 use librespot::core::spotify_id::SpotifyId;
-use librespot::metadata::{Metadata, Track, Album, Playlist};
+use librespot::metadata::{Album, Metadata, Playlist, Track};
 use std::collections::HashMap;
-use std::process;
 use std::sync::mpsc::Sender;
+use std::{process, thread};
 
 use crate::command::Command;
 use crate::command::CommandType;
@@ -48,16 +49,20 @@ impl Invoker {
             "playlist" => {
                 let playlists_map: HashMap<String, Playlist> = self.fetcher.playlists().clone(); // This looks like a boo boo
                 self.select_and_play(&playlists_map, joined_args).await;
-            },
+            }
             "album" => {
                 let albums_map: HashMap<String, Album> = self.fetcher.albums().clone();
                 self.select_and_play(&albums_map, joined_args).await;
-            },
+            }
             _ => self.unknown(),
         };
     }
 
-    pub async fn select_and_play<>(&mut self, track_collection_map: &HashMap<String, impl Tracks>, name:String) { //TODO: Naming is hard :(
+    pub async fn select_and_play(
+        &mut self,
+        track_collection_map: &HashMap<String, impl Tracks>,
+        name: String,
+    ) {
         let keys = track_collection_map.keys().cloned().collect();
         let selection = match name.is_empty() {
             false => name,
@@ -65,26 +70,14 @@ impl Invoker {
         };
         let selected_track_collection = track_collection_map.get(&selection);
         match selected_track_collection {
-            None => println!("Not found :("),
-            Some(p) => {
-                self.send_to_player(p.tracks()).await;
+            None => println!("Not found"),
+            Some(tc) => {
+                let tracks = tc.tracks().clone();
+                let session = self.session.clone();
+                let transmitter = self.transmitter.clone();
+                thread::spawn(move || block_on(send_to_player(tracks, session, transmitter)));
+                // This works?
             }
-        }
-    }
-
-    pub async fn send_to_player(&mut self, track_ids: Vec<SpotifyId>) {
-        let mut is_first_track = true;
-        for track_spotify_id in track_ids {
-            let track = Track::get(&self.session, track_spotify_id).await.unwrap();
-            let message = Message {
-                message_type: match is_first_track {
-                    true => MessageType::StartPlaying,
-                    false => MessageType::AddToQueue,
-                },
-                track: Some(track),
-            };
-            self.transmitter.send(message).unwrap();
-            is_first_track = false;
         }
     }
 
@@ -109,7 +102,7 @@ impl Invoker {
     }
 
     pub fn quit(&self) {
-        println!("Life without music is unthinkable.");
+        println!("Come back soon!");
         process::exit(0);
     }
 
@@ -127,6 +120,26 @@ pub fn select_item(items: Vec<String>) -> String {
     match selection {
         Some(index) => items[index].to_owned(),
         None => String::new(),
+    }
+}
+
+pub async fn send_to_player(
+    track_ids: Vec<SpotifyId>,
+    session: Session,
+    transmitter: Sender<Message>,
+) {
+    let mut is_first_track = true;
+    for track_spotify_id in track_ids {
+        let track = Track::get(&session, track_spotify_id).await.unwrap();
+        let message = Message {
+            message_type: match is_first_track {
+                true => MessageType::StartPlaying,
+                false => MessageType::AddToQueue,
+            },
+            track: Some(track),
+        };
+        transmitter.send(message).unwrap();
+        is_first_track = false;
     }
 }
 

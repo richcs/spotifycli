@@ -1,3 +1,4 @@
+use indicatif::ProgressBar;
 use librespot::{
     core::{cache::Cache, config::SessionConfig, session::Session},
     discovery::Credentials,
@@ -22,14 +23,15 @@ use play::{Message, Player};
 
 #[tokio::main]
 async fn main() {
-    println!("Starting up!");
+    let pb = ProgressBar::new_spinner();
+    pb.set_message("Starting session...");
+    pb.enable_steady_tick(120);
     let session = create_session().await;
-    println!("Fetching your library...");
     let fetcher = Fetcher::new(&session).await.unwrap();
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
     let _player = Player::new(session.clone(), rx);
     let mut invoker = Invoker::new(session, fetcher, tx);
-    println!("Ready!");
+    pb.finish_with_message("Ready!");
     loop {
         let input = Input::get_with_prompt(">>");
         if input.is_empty() {
@@ -56,10 +58,7 @@ async fn create_session() -> Session {
             println!("Login Failed");
             exit(-1);
         }
-        Result::Ok((session, _)) => {
-            println!("Connected Successfully");
-            session
-        }
+        Result::Ok((session, _)) => session,
     }
 }
 

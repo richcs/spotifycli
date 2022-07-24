@@ -23,24 +23,30 @@ impl Fetcher {
         let token = fetch_token(session).await;
 
         // Get user's playlists
-        let playlists_endpoint = String::from("https://api.spotify.com/v1/me/playlists?fields=items(id)");
-        let playlists_json = request(&api_client, playlists_endpoint, &token).await.unwrap();
-        let fetched_playlists = serde_json::from_str::<JsonPlaylists>(playlists_json.as_str())?;
+        let playlists_endpoint =
+            String::from("https://api.spotify.com/v1/me/playlists?fields=items(id)");
+        let playlists_json = request(&api_client, playlists_endpoint, &token)
+            .await
+            .unwrap();
+        let fetched_playlists = serde_json::from_str::<PlaylistsModel>(playlists_json.as_str())?;
         for p in fetched_playlists.items {
             let playlist = fetch_individual::<Playlist>(p.id, session).await.unwrap();
             playlists.insert(playlist.name.to_owned(), playlist);
         }
 
         // Get user's albums
-        let albums_endpoint = String::from("https://api.spotify.com/v1/me/albums?fields=items(album(id))");
+        let albums_endpoint =
+            String::from("https://api.spotify.com/v1/me/albums?fields=items(album(id))");
         let albums_json = request(&api_client, albums_endpoint, &token).await.unwrap();
-        let fetched_albums = serde_json::from_str::<JsonAlbums>(albums_json.as_str())?;
+        let fetched_albums = serde_json::from_str::<AlbumsModel>(albums_json.as_str())?;
         for album_wrapper in fetched_albums.items {
-            let album = fetch_individual::<Album>(album_wrapper.album.id, session).await.unwrap();
+            let album = fetch_individual::<Album>(album_wrapper.album.id, session)
+                .await
+                .unwrap();
             albums.insert(album.name.to_owned(), album);
         }
 
-        let fetcher = Fetcher { playlists, albums, };
+        let fetcher = Fetcher { playlists, albums };
         Ok(fetcher)
     }
 
@@ -60,7 +66,11 @@ pub async fn fetch_token(session: &Session) -> Token {
     token
 }
 
-pub async fn request(api_client: &reqwest::Client, endpoint: String, token: &Token) -> Result<String, reqwest::Error> {
+pub async fn request(
+    api_client: &reqwest::Client,
+    endpoint: String,
+    token: &Token,
+) -> Result<String, reqwest::Error> {
     let data = api_client
         .get(endpoint)
         .header("Accept", "application/json")
@@ -73,7 +83,10 @@ pub async fn request(api_client: &reqwest::Client, endpoint: String, token: &Tok
     Ok(data)
 }
 
-pub async fn fetch_individual<T: Metadata>(id: String, session: &Session) -> Result<T, SpotifyIdError> {
+pub async fn fetch_individual<T: Metadata>(
+    id: String,
+    session: &Session,
+) -> Result<T, SpotifyIdError> {
     let spotify_id_result = SpotifyId::from_base62(&id);
     match spotify_id_result {
         Ok(spotify_id) => {
@@ -85,26 +98,27 @@ pub async fn fetch_individual<T: Metadata>(id: String, session: &Session) -> Res
 }
 
 #[derive(serde::Deserialize)]
-pub struct JsonPlaylists {
-    items: Vec<JsonPlaylist>,
+pub struct PlaylistsModel {
+    items: Vec<PlaylistModel>,
 }
 
 #[derive(serde::Deserialize, Clone)]
-pub struct JsonPlaylist {
+pub struct PlaylistModel {
     pub id: String,
 }
 
 #[derive(serde::Deserialize)]
-pub struct JsonAlbums {
-    items: Vec<JsonAlbumWrapper>,
+pub struct AlbumsModel {
+    items: Vec<AlbumWrapperModel>,
 }
 
 #[derive(serde::Deserialize, Clone)]
-pub struct JsonAlbumWrapper { // What is this...
-    pub album: JsonAlbum,
+pub struct AlbumWrapperModel {
+    // What is this...
+    pub album: AlbumModel,
 }
 
 #[derive(serde::Deserialize, Clone)]
-pub struct JsonAlbum {
+pub struct AlbumModel {
     pub id: String,
 }
