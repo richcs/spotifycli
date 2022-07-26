@@ -47,38 +47,14 @@ impl Invoker {
         let joined_args = args.join(" ");
         match first_arg.as_str() {
             "playlist" => {
-                let playlists_map: HashMap<String, Playlist> = self.fetcher.playlists().clone(); // This looks like a boo boo
-                self.select_and_play(&playlists_map, joined_args).await;
+                select_and_play(self.fetcher.playlists(), joined_args, &self.session, &self.transmitter).await;
             }
             "album" => {
-                let albums_map: HashMap<String, Album> = self.fetcher.albums().clone();
-                self.select_and_play(&albums_map, joined_args).await;
+                select_and_play(self.fetcher.albums(), joined_args, &self.session, &self.transmitter).await;
             }
             _ => self.unknown(),
         };
-    }
 
-    pub async fn select_and_play(
-        &mut self,
-        track_collection_map: &HashMap<String, impl Tracks>,
-        name: String,
-    ) {
-        let keys = track_collection_map.keys().cloned().collect();
-        let selection = match name.is_empty() {
-            false => name,
-            true => select_item(keys),
-        };
-        let selected_track_collection = track_collection_map.get(&selection);
-        match selected_track_collection {
-            None => println!("Not found"),
-            Some(tc) => {
-                let tracks = tc.tracks().clone();
-                let session = self.session.clone();
-                let transmitter = self.transmitter.clone();
-                thread::spawn(move || block_on(send_to_player(tracks, session, transmitter)));
-                // This works?
-            }
-        }
     }
 
     pub async fn stop(&mut self) {
@@ -111,7 +87,31 @@ impl Invoker {
     }
 }
 
-pub fn select_item(items: Vec<String>) -> String {
+pub async fn select_and_play(
+    track_collection_map: &HashMap<String, impl Tracks>,
+    name: String,
+    session: &Session,
+    transmitter: &Sender<Message>,
+) {
+    let keys: Vec<&String> = track_collection_map.keys().collect();
+    let selection = match name.is_empty() {
+        false => name,
+        true => select_item(keys),
+    };
+    let selected_track_collection = track_collection_map.get(&selection);
+    match selected_track_collection {
+        None => println!("Not found"),
+        Some(tc) => {
+            let tracks = tc.tracks().clone();
+            let session = session.clone();
+            let transmitter = transmitter.clone(); // Attack of the Clones
+            thread::spawn(move || block_on(send_to_player(tracks, session, transmitter))); // This works?
+            
+        }
+    }
+}
+
+pub fn select_item(items: Vec<&String>) -> String {
     let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
         .items(&items)
         .default(0)
@@ -144,17 +144,17 @@ pub async fn send_to_player(
 }
 
 pub trait Tracks {
-    fn tracks(&self) -> Vec<SpotifyId>;
+    fn tracks(&self) -> &Vec<SpotifyId>;
 }
 
 impl Tracks for Album {
-    fn tracks(&self) -> Vec<SpotifyId> {
-        self.tracks.clone()
+    fn tracks(&self) -> &Vec<SpotifyId> {
+        &self.tracks
     }
 }
 
 impl Tracks for Playlist {
-    fn tracks(&self) -> Vec<SpotifyId> {
-        self.tracks.clone()
+    fn tracks(&self) -> &Vec<SpotifyId> {
+        &self.tracks
     }
 }
