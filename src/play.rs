@@ -6,16 +6,14 @@ use std::{
 };
 
 use indicatif::ProgressBar;
-use librespot::playback::player::Player as LibrePlayer;
-use librespot::{
-    core::session::Session,
-    metadata::Track,
-    playback::{
-        audio_backend,
-        config::{AudioFormat, PlayerConfig},
-        mixer::NoOpVolume,
-        player::PlayerEvent,
-    },
+use librespot_core::session::Session;
+use librespot_metadata::Track;
+use librespot_playback::player::Player as LibrePlayer;
+use librespot_playback::{
+    audio_backend,
+    config::{AudioFormat, PlayerConfig},
+    mixer::NoOpVolume,
+    player::PlayerEvent,
 };
 
 pub struct Player {}

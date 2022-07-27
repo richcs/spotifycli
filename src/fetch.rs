@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 
 use crate::config as Config;
-use librespot::{
-    core::{
-        keymaster::{self, Token},
-        session::Session,
-        spotify_id::{SpotifyId, SpotifyIdError},
-    },
-    metadata::{Album, Metadata, Playlist},
+use librespot_core::{
+    keymaster::{self, Token},
+    session::Session,
+    spotify_id::{SpotifyId, SpotifyIdError},
 };
+use librespot_metadata::{Album, Metadata, Playlist};
 
 pub struct Fetcher {
     playlists: HashMap<String, Playlist>,

@@ -1,18 +1,28 @@
 [package]
 name = "spotifycli"
 version = "0.1.0"
+authors = ["richardlei.cs@gmail.com"]
+description = "Play Spotify from the comfort of your terminal!"
+repository = "https://github.com/richcs/spotifycli"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-librespot = "0.4.1"
+librespot-core = "0.4.1"
+librespot-discovery = "0.4.1"
+librespot-metadata = "0.4.1"
+librespot-playback = "0.4.1"
 text_io = "0.1.10"
-tokio = { version = "1", features = ["macros"] }
+tokio = { version = "1", default-features = false, features = [
+    "macros",
+    "rt",
+    "rt-multi-thread",
+] }
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 console = "0.15.0"
 dialoguer = { version = "0.10.1", features = ["fuzzy-select"] }
 indicatif = "0.16.2"
-futures = { version = "0.3.21", features = ["executor"]}
+futures = { version = "0.3.21", default-features = false, features = [
+    "executor",
+] }
