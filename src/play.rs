@@ -1,9 +1,10 @@
 use std::{
     collections::LinkedList,
     sync::mpsc::Receiver,
-    thread::{self, JoinHandle},
+    thread::{self, JoinHandle}, io::{self, Write},
 };
 
+use indicatif::ProgressBar;
 use librespot::playback::player::Player as LibrePlayer;
 use librespot::{
     core::session::Session,
@@ -25,6 +26,7 @@ impl Player {
         let mut player = create_player(session);
         let mut track_queue: LinkedList<Track> = LinkedList::new();
         let mut events = player.get_player_event_channel();
+        let mut spinner = ProgressBar::new_spinner();
         let thread = thread::spawn(move || loop {
             match receiver.try_recv() {
                 Ok(message) => match message.message_type {
@@ -32,11 +34,18 @@ impl Player {
                     MessageType::StartPlaying => {
                         let track = message.track.unwrap();
                         track_queue.clear();
+                        spinner = ProgressBar::new_spinner();
+                        spinner.enable_steady_tick(120);
+                        spinner.set_message(track.name);
                         player.load(track.id, true, 0);
                     }
                     MessageType::StopPlaying => {
                         player.stop();
                         track_queue.clear();
+                        spinner.finish();
+                        println!("Stopped");
+                        print!(">> ");
+                        io::stdout().flush().unwrap();
                     }
                 },
                 Err(_) => (),
@@ -46,6 +55,7 @@ impl Player {
                 Ok(PlayerEvent::EndOfTrack { .. }) => {
                     if !track_queue.is_empty() {
                         let track = track_queue.pop_front().unwrap();
+                        spinner.set_message(track.name);
                         player.load(track.id, true, 0);
                     }
                 }

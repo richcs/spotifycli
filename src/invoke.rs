@@ -1,3 +1,4 @@
+use console::Term;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::FuzzySelect;
 use futures::executor::block_on;
@@ -55,6 +56,14 @@ impl Invoker {
             _ => self.unknown(),
         };
 
+        let stdout = Term::stdout();
+        let key = stdout.read_key();
+        match key {
+            Ok(_) => { 
+                self.stop().await;
+            },
+            Err(_) => (),
+        }
     }
 
     pub async fn stop(&mut self) {
@@ -88,7 +97,7 @@ impl Invoker {
 }
 
 pub async fn select_and_play(
-    track_collection_map: &HashMap<String, impl Tracks>,
+    track_collection_map: &HashMap<String, impl TrackCollection>,
     name: String,
     session: &Session,
     transmitter: &Sender<Message>,
@@ -102,9 +111,10 @@ pub async fn select_and_play(
     match selected_track_collection {
         None => println!("Not found"),
         Some(tc) => {
+            println!("Playing {}", tc.name());
             let tracks = tc.tracks().clone();
             let session = session.clone();
-            let transmitter = transmitter.clone(); // Attack of the Clones
+            let transmitter = transmitter.clone();
             thread::spawn(move || block_on(send_to_player(tracks, session, transmitter))); // This works?
             
         }
@@ -143,18 +153,27 @@ pub async fn send_to_player(
     }
 }
 
-pub trait Tracks {
+pub trait TrackCollection {
     fn tracks(&self) -> &Vec<SpotifyId>;
+    fn name(&self) -> String;
 }
 
-impl Tracks for Album {
+impl TrackCollection for Album {
     fn tracks(&self) -> &Vec<SpotifyId> {
         &self.tracks
     }
+
+    fn name(&self) -> String {
+        self.name.to_string()
+    }
 }
 
-impl Tracks for Playlist {
+impl TrackCollection for Playlist {
     fn tracks(&self) -> &Vec<SpotifyId> {
         &self.tracks
+    }
+
+    fn name(&self) -> String {
+        self.name.to_string()
     }
 }
