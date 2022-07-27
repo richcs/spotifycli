@@ -1,4 +1,3 @@
-use console::Term;
 use indicatif::ProgressBar;
 use librespot::{
     core::{cache::Cache, config::SessionConfig, session::Session},

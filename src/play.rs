@@ -1,7 +1,8 @@
 use std::{
     collections::LinkedList,
+    io::{self, Write},
     sync::mpsc::Receiver,
-    thread::{self, JoinHandle}, io::{self, Write},
+    thread::{self},
 };
 
 use indicatif::ProgressBar;
@@ -17,9 +18,7 @@ use librespot::{
     },
 };
 
-pub struct Player {
-    thread: JoinHandle<()>,
-}
+pub struct Player {}
 
 impl Player {
     pub fn new(session: Session, receiver: Receiver<Message>) -> Player {
@@ -27,25 +26,27 @@ impl Player {
         let mut track_queue: LinkedList<Track> = LinkedList::new();
         let mut events = player.get_player_event_channel();
         let mut spinner = ProgressBar::new_spinner();
-        let thread = thread::spawn(move || loop {
+        let _thread = thread::spawn(move || loop {
             match receiver.try_recv() {
-                Ok(message) => match message.message_type {
-                    MessageType::AddToQueue => track_queue.push_back(message.track.unwrap()),
-                    MessageType::StartPlaying => {
-                        let track = message.track.unwrap();
+                Ok(message) => match message {
+                    Message::AddToQueue(track) => track_queue.push_back(track),
+                    Message::StartPlaying(track) => {
                         track_queue.clear();
                         spinner = ProgressBar::new_spinner();
                         spinner.enable_steady_tick(120);
                         spinner.set_message(track.name);
                         player.load(track.id, true, 0);
                     }
-                    MessageType::StopPlaying => {
+                    Message::StopPlaying => {
                         player.stop();
                         track_queue.clear();
                         spinner.finish();
                         println!("Stopped");
                         print!(">> ");
                         io::stdout().flush().unwrap();
+                    }
+                    Message::Quit => {
+                        break;
                     }
                 },
                 Err(_) => (),
@@ -64,7 +65,7 @@ impl Player {
             }
         });
 
-        Player { thread }
+        Player {}
     }
 }
 
@@ -78,13 +79,9 @@ fn create_player(session: Session) -> LibrePlayer {
     result.0
 }
 
-pub struct Message {
-    pub message_type: MessageType,
-    pub track: Option<Track>,
-}
-
-pub enum MessageType {
-    StartPlaying,
+pub enum Message {
+    StartPlaying(Track),
     StopPlaying,
-    AddToQueue,
+    AddToQueue(Track),
+    Quit,
 }

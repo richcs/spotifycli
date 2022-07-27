@@ -12,7 +12,7 @@ use std::{process, thread};
 use crate::command::Command;
 use crate::command::CommandType;
 use crate::fetch::Fetcher;
-use crate::play::{Message, MessageType};
+use crate::play::Message;
 
 pub struct Invoker {
     session: Session,
@@ -48,10 +48,22 @@ impl Invoker {
         let joined_args = args.join(" ");
         match first_arg.as_str() {
             "playlist" => {
-                select_and_play(self.fetcher.playlists(), joined_args, &self.session, &self.transmitter).await;
+                select_and_play(
+                    self.fetcher.playlists(),
+                    joined_args,
+                    &self.session,
+                    &self.transmitter,
+                )
+                .await;
             }
             "album" => {
-                select_and_play(self.fetcher.albums(), joined_args, &self.session, &self.transmitter).await;
+                select_and_play(
+                    self.fetcher.albums(),
+                    joined_args,
+                    &self.session,
+                    &self.transmitter,
+                )
+                .await;
             }
             _ => self.unknown(),
         };
@@ -59,18 +71,15 @@ impl Invoker {
         let stdout = Term::stdout();
         let key = stdout.read_key();
         match key {
-            Ok(_) => { 
+            Ok(_) => {
                 self.stop().await;
-            },
+            }
             Err(_) => (),
         }
     }
 
     pub async fn stop(&mut self) {
-        let message = Message {
-            message_type: MessageType::StopPlaying,
-            track: None,
-        };
+        let message = Message::StopPlaying;
         self.transmitter.send(message).unwrap();
     }
 
@@ -87,6 +96,8 @@ impl Invoker {
     }
 
     pub fn quit(&self) {
+        let message = Message::Quit;
+        self.transmitter.send(message).unwrap();
         println!("Come back soon!");
         process::exit(0);
     }
@@ -116,7 +127,6 @@ pub async fn select_and_play(
             let session = session.clone();
             let transmitter = transmitter.clone();
             thread::spawn(move || block_on(send_to_player(tracks, session, transmitter))); // This works?
-            
         }
     }
 }
@@ -141,12 +151,9 @@ pub async fn send_to_player(
     let mut is_first_track = true;
     for track_spotify_id in track_ids {
         let track = Track::get(&session, track_spotify_id).await.unwrap();
-        let message = Message {
-            message_type: match is_first_track {
-                true => MessageType::StartPlaying,
-                false => MessageType::AddToQueue,
-            },
-            track: Some(track),
+        let message = match is_first_track {
+            true => Message::StartPlaying(track),
+            false => Message::AddToQueue(track),
         };
         transmitter.send(message).unwrap();
         is_first_track = false;
