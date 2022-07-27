@@ -2,9 +2,9 @@ use console::Term;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::FuzzySelect;
 use futures::executor::block_on;
-use librespot_core::session::Session;
-use librespot_core::spotify_id::SpotifyId;
-use librespot_metadata::{Album, Metadata, Playlist, Track};
+use librespot::core::session::Session;
+use librespot::core::spotify_id::SpotifyId;
+use librespot::metadata::{Album, Metadata, Playlist, Track};
 use std::collections::HashMap;
 use std::sync::mpsc::Sender;
 use std::{process, thread};
@@ -126,7 +126,8 @@ pub async fn select_and_play(
             let tracks = tc.tracks().clone();
             let session = session.clone();
             let transmitter = transmitter.clone();
-            thread::spawn(move || block_on(send_to_player(tracks, session, transmitter))); // This works?
+            thread::spawn(move || block_on(send_to_player(tracks, session, transmitter)));
+            // This works?
         }
     }
 }

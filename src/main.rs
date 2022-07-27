@@ -1,6 +1,6 @@
 use indicatif::ProgressBar;
-use librespot_core::{cache::Cache, config::SessionConfig, session::Session};
-use librespot_discovery::{Credentials};
+use librespot::core::{cache::Cache, config::SessionConfig, session::Session};
+use librespot::discovery::Credentials;
 use std::path::Path;
 use std::process::exit;
 use std::sync::mpsc::{self, Receiver, Sender};

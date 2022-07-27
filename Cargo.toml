@@ -7,10 +7,7 @@ repository = "https://github.com/richcs/spotifycli"
 edition = "2021"
 
 [dependencies]
-librespot-core = "0.4.1"
-librespot-discovery = "0.4.1"
-librespot-metadata = "0.4.1"
-librespot-playback = "0.4.1"
+librespot = "0.4.1"
 text_io = "0.1.10"
 tokio = { version = "1", default-features = false, features = [
     "macros",

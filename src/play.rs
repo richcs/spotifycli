@@ -6,10 +6,10 @@ use std::{
 };
 
 use indicatif::ProgressBar;
-use librespot_core::session::Session;
-use librespot_metadata::Track;
-use librespot_playback::player::Player as LibrePlayer;
-use librespot_playback::{
+use librespot::core::session::Session;
+use librespot::metadata::Track;
+use librespot::playback::player::Player as LibrePlayer;
+use librespot::playback::{
     audio_backend,
     config::{AudioFormat, PlayerConfig},
     mixer::NoOpVolume,
