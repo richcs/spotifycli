@@ -46,3 +46,18 @@ pub fn start_session_spinner() -> ProgressBar {
 pub fn stop_session_spinner(spinner: ProgressBar) {
     spinner.finish_with_message("Ready!")
 }
+
+pub fn start_player_spinner() -> ProgressBar {
+    let spinner = ProgressBar::new_spinner();
+    spinner.set_style(
+        ProgressStyle::default_spinner().template("{spinner:.blue} {msg:.blue}")
+    );
+    spinner.enable_steady_tick(120);
+    spinner
+}
+
+pub fn stop_player_spinner(spinner: &ProgressBar) {
+    spinner.finish();
+    println("Stopped");
+    print_prompt();
+}

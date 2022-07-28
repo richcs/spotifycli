@@ -15,8 +15,7 @@ use librespot::playback::{
     player::PlayerEvent,
 };
 
-use crate::interact::print_prompt;
-use crate::interact::println;
+use crate::interact as Interact;
 
 pub struct Player {}
 
@@ -32,17 +31,14 @@ impl Player {
                     Message::AddToQueue(track) => track_queue.push_back(track),
                     Message::StartPlaying(track) => {
                         track_queue.clear();
-                        spinner = ProgressBar::new_spinner();
-                        spinner.enable_steady_tick(120);
+                        spinner = Interact::start_player_spinner();
                         spinner.set_message(track.name);
                         player.load(track.id, true, 0);
                     }
                     Message::StopPlaying => {
                         player.stop();
                         track_queue.clear();
-                        spinner.finish();
-                        println("Stopped");
-                        print_prompt();
+                        Interact::stop_player_spinner(&spinner);
                     }
                     Message::Quit => {
                         break;
