@@ -1,6 +1,6 @@
 use console::Term;
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::FuzzySelect;
+use dialoguer::{FuzzySelect};
 use futures::executor::block_on;
 use librespot::core::session::Session;
 use librespot::core::spotify_id::SpotifyId;
@@ -13,6 +13,7 @@ use crate::command::Command;
 use crate::command::CommandType;
 use crate::fetch::Fetcher;
 use crate::play::Message;
+use crate::interact::println;
 
 pub struct Invoker {
     session: Session,
@@ -87,23 +88,23 @@ impl Invoker {
         // List all playlists
         let playlists = self.fetcher.playlists();
         for p in playlists.keys() {
-            println!("{}", p);
+            println(p);
         }
     }
 
     pub fn whoami(&self) {
-        println!("Good question...");
+        println("Good question...");
     }
 
     pub fn quit(&self) {
         let message = Message::Quit;
         self.transmitter.send(message).unwrap();
-        println!("Come back soon!");
+        println("Come back soon!");
         process::exit(0);
     }
 
     pub fn unknown(&self) {
-        println!("Huh?");
+        println("Huh?");
     }
 }
 
@@ -120,9 +121,10 @@ pub async fn select_and_play(
     };
     let selected_track_collection = track_collection_map.get(&selection);
     match selected_track_collection {
-        None => println!("Not found"),
+        None => println("Not found"),
         Some(tc) => {
-            println!("Playing {}", tc.name());
+            let tc_display = String::from("Playing ") + &tc.name();
+            println(tc_display.as_str());
             let tracks = tc.tracks().clone();
             let session = session.clone();
             let transmitter = transmitter.clone();

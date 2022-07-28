@@ -1,6 +1,5 @@
 use std::{
     collections::LinkedList,
-    io::{self, Write},
     sync::mpsc::Receiver,
     thread::{self},
 };
@@ -15,6 +14,9 @@ use librespot::playback::{
     mixer::NoOpVolume,
     player::PlayerEvent,
 };
+
+use crate::interact::print_prompt;
+use crate::interact::println;
 
 pub struct Player {}
 
@@ -39,9 +41,8 @@ impl Player {
                         player.stop();
                         track_queue.clear();
                         spinner.finish();
-                        println!("Stopped");
-                        print!(">> ");
-                        io::stdout().flush().unwrap();
+                        println("Stopped");
+                        print_prompt();
                     }
                     Message::Quit => {
                         break;
