@@ -25,7 +25,8 @@ impl Player {
         let mut track_queue: LinkedList<Track> = LinkedList::new();
         let mut events = player.get_player_event_channel();
         let mut spinner = ProgressBar::new_spinner();
-        let _thread = thread::spawn(move || loop {
+        let builder = thread::Builder::new().name("track_player".into());
+        let _thread = builder.spawn(move || loop {
             match receiver.try_recv() {
                 Ok(message) => match message {
                     Message::AddToQueue(track) => track_queue.push_back(track),

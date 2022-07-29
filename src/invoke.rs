@@ -153,13 +153,22 @@ pub async fn send_to_player(
 ) {
     let mut is_first_track = true;
     for track_spotify_id in track_ids {
-        let track = Track::get(&session, track_spotify_id).await.unwrap();
-        let message = match is_first_track {
-            true => Message::StartPlaying(track),
-            false => Message::AddToQueue(track),
-        };
-        transmitter.send(message).unwrap();
-        is_first_track = false;
+        let track_result = Track::get(&session, track_spotify_id).await;
+        match track_result {
+            Ok(track) => {
+                let message = match is_first_track {
+                    true => { 
+                        is_first_track = false;
+                        Message::StartPlaying(track) 
+                    },
+                    false => Message::AddToQueue(track),
+                };
+                transmitter.send(message).unwrap_or_else(|err| {
+                    eprintln!("Problem sending track to player: {}", err);
+                });
+            },
+            Err(_) => eprintln!("Problem getting track"),
+        }
     }
 }
 
