@@ -1,6 +1,6 @@
-use console::Term;
+use console::{Key, Term};
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::{FuzzySelect};
+use dialoguer::FuzzySelect;
 use futures::executor::block_on;
 use librespot::core::session::Session;
 use librespot::core::spotify_id::SpotifyId;
@@ -12,8 +12,8 @@ use std::{process, thread};
 use crate::command::Command;
 use crate::command::CommandType;
 use crate::fetch::Fetcher;
-use crate::play::Message;
 use crate::interact::println;
+use crate::play::Message;
 
 pub struct Invoker {
     session: Session,
@@ -45,6 +45,10 @@ impl Invoker {
     }
 
     pub async fn play(&mut self, mut args: Vec<String>) {
+        if args.is_empty() {
+            self.unknown();
+            return;
+        }
         let first_arg = args.remove(0);
         let joined_args = args.join(" ");
         match first_arg.as_str() {
@@ -66,16 +70,23 @@ impl Invoker {
                 )
                 .await;
             }
-            _ => self.unknown(),
+            _ => {
+                self.unknown();
+                return;
+            }
         };
 
+        // Wait for user input to stop playing music
         let stdout = Term::stdout();
-        let key = stdout.read_key();
-        match key {
-            Ok(_) => {
-                self.stop().await;
+        loop {
+            let key_result = stdout.read_key();
+            match key_result {
+                Ok(Key::Unknown | Key::UnknownEscSeq(_)) => (),
+                _ => {
+                    self.stop().await;
+                    break;
+                }
             }
-            Err(_) => (),
         }
     }
 
@@ -84,12 +95,25 @@ impl Invoker {
         self.transmitter.send(message).unwrap();
     }
 
-    pub fn list(&self, args: Vec<String>) {
-        // List all playlists
-        let playlists = self.fetcher.playlists();
-        for p in playlists.keys() {
-            println(p);
+    pub fn list(&self, mut args: Vec<String>) {
+        if args.is_empty() {
+            self.unknown();
+            return;
         }
+        let first_arg = args.remove(0);
+        match first_arg.as_str() {
+            "playlist" => {
+                for p in self.fetcher.playlists().keys() {
+                    println(p);
+                }
+            }
+            "album" => {
+                for a in self.fetcher.albums().keys() {
+                    println(a);
+                }
+            }
+            _ => self.unknown(),
+        };
     }
 
     pub fn whoami(&self) {
@@ -123,7 +147,7 @@ pub async fn select_and_play(
     match selected_track_collection {
         None => println("Not found"),
         Some(tc) => {
-            let tc_display = String::from("Playing ") + &tc.name();
+            let tc_display = String::from("Playing ") + &tc.name() + " (press any key to stop)";
             println(tc_display.as_str());
             let tracks = tc.tracks().clone();
             let session = session.clone();
@@ -157,17 +181,17 @@ pub async fn send_to_player(
         match track_result {
             Ok(track) => {
                 let message = match is_first_track {
-                    true => { 
+                    true => {
                         is_first_track = false;
-                        Message::StartPlaying(track) 
-                    },
+                        Message::StartPlaying(track)
+                    }
                     false => Message::AddToQueue(track),
                 };
                 transmitter.send(message).unwrap_or_else(|err| {
                     eprintln!("Problem sending track to player: {}", err);
                 });
-            },
-            Err(_) => eprintln!("Problem getting track"),
+            }
+            Err(_) => (), // TODO: How should I handle?
         }
     }
 }
