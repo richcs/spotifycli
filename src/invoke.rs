@@ -10,7 +10,7 @@ use std::{process, thread};
 use crate::command::Command;
 use crate::command::CommandType;
 use crate::fetch::Fetcher;
-use crate::interact as Interact;
+use crate::interact::{self as Interact, print_help};
 use crate::interact::println;
 use crate::play::{Message, TrackData};
 
@@ -36,6 +36,7 @@ impl Invoker {
             CommandType::Stop => self.stop().await,
             CommandType::List => self.list(command.args),
             CommandType::Whoami => self.whoami(),
+            CommandType::Help => self.help(),
             CommandType::Quit => self.quit(),
             _ => self.unknown(),
         }
@@ -124,7 +125,11 @@ impl Invoker {
     }
 
     pub fn whoami(&self) {
-        println("Good question...");
+        println(&self.session.username());
+    }
+
+    pub fn help(&self) {
+        print_help();
     }
 
     pub fn quit(&self) {

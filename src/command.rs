@@ -37,7 +37,7 @@ impl std::str::FromStr for CommandType {
             "stop" => Ok(CommandType::Stop),
             "ls" | "list" => Ok(CommandType::List),
             "whoami" => Ok(CommandType::Whoami),
-            "help" => Ok(CommandType::Help),
+            "help" | "man" => Ok(CommandType::Help),
             "quit" => Ok(CommandType::Quit),
             _ => Ok(CommandType::Unknown),
         }

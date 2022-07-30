@@ -44,7 +44,7 @@ pub fn start_session_spinner() -> ProgressBar {
 }
 
 pub fn stop_session_spinner(spinner: ProgressBar) {
-    spinner.finish_with_message("Ready!")
+    spinner.finish_with_message("Ready! (type 'help' for commands)")
 }
 
 pub fn start_player_spinner() -> ProgressBar {
@@ -72,4 +72,14 @@ pub fn select_item(items: Vec<&String>) -> String {
         Some(index) => items[index].to_owned(),
         None => String::new(),
     }
+}
+
+pub fn print_help() {
+    println("Available Commands:");
+    println("play playlist/album         Select and play a playlist/album");
+    println("play playlist/album <name>  Play a playlist/album with name <name>");
+    println("ls playlist/album           Print list of available playlists/albums");
+    println("whoami                      Print your username");
+    println("help                        Print list of available commands");
+    println("quit                        Exit program");
 }
