@@ -10,6 +10,7 @@ mod fetch;
 mod interact;
 mod invoke;
 mod play;
+mod model;
 
 use command::Command;
 use config as Config;

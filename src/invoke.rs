@@ -53,7 +53,7 @@ impl Invoker {
         let joined_args = args.join(" ");
         match first_arg.as_str() {
             "playlist" => {
-                select_and_play(
+                play_track_collection(
                     self.fetcher.playlists(),
                     joined_args,
                     &self.session,
@@ -62,7 +62,7 @@ impl Invoker {
                 .await;
             }
             "album" => {
-                select_and_play(
+                play_track_collection(
                     self.fetcher.albums(),
                     joined_args,
                     &self.session,
@@ -102,12 +102,12 @@ impl Invoker {
         }
         let first_arg = args.remove(0);
         match first_arg.as_str() {
-            "playlist" => {
+            "playlist" | "playlists" => {
                 for p in self.fetcher.playlists().keys() {
                     println(p);
                 }
             }
-            "album" => {
+            "album" | "albums" => {
                 for a in self.fetcher.albums().keys() {
                     println(a);
                 }
@@ -132,18 +132,13 @@ impl Invoker {
     }
 }
 
-pub async fn select_and_play(
+async fn play_track_collection(
     track_collection_map: &HashMap<String, impl TrackCollection>,
     name: String,
     session: &Session,
     transmitter: &Sender<Message>,
 ) {
-    let keys: Vec<&String> = track_collection_map.keys().collect();
-    let selection = match name.is_empty() {
-        false => name,
-        true => select_item(keys),
-    };
-    let selected_track_collection = track_collection_map.get(&selection);
+    let selected_track_collection = select_track_collection(track_collection_map, name);
     match selected_track_collection {
         None => println("Not found"),
         Some(tc) => {
@@ -158,7 +153,29 @@ pub async fn select_and_play(
     }
 }
 
-pub fn select_item(items: Vec<&String>) -> String {
+fn select_track_collection(
+    track_collection_map: &HashMap<String, impl TrackCollection>,
+    name: String,
+) -> Option<&impl TrackCollection> {
+    let keys: Vec<&String> = track_collection_map.keys().collect();
+    let selection = match name.is_empty() {
+        false => {
+            let mut matching_key = String::from("");
+            for key in keys.iter() {
+                if key.contains(&name) {
+                    matching_key = key.to_string();
+                    break;
+                }
+            }
+            matching_key
+        }
+        true => select_item(keys),
+    };
+    let selected_track_collection = track_collection_map.get(&selection);
+    selected_track_collection
+}
+
+fn select_item(items: Vec<&String>) -> String {
     let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
         .items(&items)
         .default(0)
@@ -170,7 +187,7 @@ pub fn select_item(items: Vec<&String>) -> String {
     }
 }
 
-pub async fn send_to_player(
+async fn send_to_player(
     track_ids: Vec<SpotifyId>,
     session: Session,
     transmitter: Sender<Message>,

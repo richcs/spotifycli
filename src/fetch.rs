@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::config as Config;
+use crate::{
+    config as Config,
+    model::{AlbumsModel, PlaylistsModel},
+};
 use librespot::core::{
     keymaster::{self, Token},
     session::Session,
@@ -34,14 +37,15 @@ impl Fetcher {
 
         // Get user's albums
         let albums_endpoint =
-            String::from("https://api.spotify.com/v1/me/albums?fields=items(album(id))");
+            String::from("https://api.spotify.com/v1/me/albums?fields=items(album(id))"); // if only this worked...
         let albums_json = request(&api_client, albums_endpoint, &token).await.unwrap();
         let fetched_albums = serde_json::from_str::<AlbumsModel>(albums_json.as_str())?;
         for album_wrapper in fetched_albums.items {
             let album = fetch_individual::<Album>(album_wrapper.album.id, session)
                 .await
                 .unwrap();
-            albums.insert(album.name.to_owned(), album);
+            let album_key = album.name.to_owned() + " - " + &album_wrapper.album.artists[0].name;
+            albums.insert(album_key, album);
         }
 
         let fetcher = Fetcher { playlists, albums };
@@ -93,30 +97,4 @@ pub async fn fetch_individual<T: Metadata>(
         }
         Err(SpotifyIdError) => panic!(),
     }
-}
-
-#[derive(serde::Deserialize)]
-pub struct PlaylistsModel {
-    items: Vec<PlaylistModel>,
-}
-
-#[derive(serde::Deserialize, Clone)]
-pub struct PlaylistModel {
-    pub id: String,
-}
-
-#[derive(serde::Deserialize)]
-pub struct AlbumsModel {
-    items: Vec<AlbumWrapperModel>,
-}
-
-#[derive(serde::Deserialize, Clone)]
-pub struct AlbumWrapperModel {
-    // What is this...
-    pub album: AlbumModel,
-}
-
-#[derive(serde::Deserialize, Clone)]
-pub struct AlbumModel {
-    pub id: String,
 }
