@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use console::style;
-use dialoguer::Password;
+use dialoguer::{Password, FuzzySelect, theme::ColorfulTheme};
 use indicatif::{ProgressBar, ProgressStyle};
 use text_io::read;
 
@@ -60,4 +60,16 @@ pub fn stop_player_spinner(spinner: &ProgressBar) {
     spinner.finish();
     println("Stopped");
     print_prompt();
+}
+
+pub fn select_item(items: Vec<&String>) -> String {
+    let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
+        .items(&items)
+        .default(0)
+        .interact_opt()
+        .unwrap();
+    match selection {
+        Some(index) => items[index].to_owned(),
+        None => String::new(),
+    }
 }

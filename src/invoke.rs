@@ -1,10 +1,8 @@
 use console::{Key, Term};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::FuzzySelect;
 use futures::executor::block_on;
 use librespot::core::session::Session;
 use librespot::core::spotify_id::SpotifyId;
-use librespot::metadata::{Album, Metadata, Playlist, Track};
+use librespot::metadata::{Album, Artist, Metadata, Playlist, Track};
 use std::collections::HashMap;
 use std::sync::mpsc::Sender;
 use std::{process, thread};
@@ -12,8 +10,9 @@ use std::{process, thread};
 use crate::command::Command;
 use crate::command::CommandType;
 use crate::fetch::Fetcher;
+use crate::interact as Interact;
 use crate::interact::println;
-use crate::play::Message;
+use crate::play::{Message, TrackData};
 
 pub struct Invoker {
     session: Session,
@@ -51,7 +50,8 @@ impl Invoker {
         }
         let first_arg = args.remove(0);
         let joined_args = args.join(" ");
-        match first_arg.as_str() { // TODO: Merge these somehow
+        match first_arg.as_str() {
+            // TODO: Merge these somehow
             "playlist" => {
                 let track_collection =
                     select_track_collection(self.fetcher.playlists(), joined_args);
@@ -66,8 +66,7 @@ impl Invoker {
                 }
             }
             "album" => {
-                let track_collection = 
-                    select_track_collection(self.fetcher.albums(), joined_args);
+                let track_collection = select_track_collection(self.fetcher.albums(), joined_args);
                 match track_collection {
                     None => {
                         println("Not found");
@@ -170,22 +169,10 @@ fn select_track_collection(
             }
             matching_key
         }
-        true => select_item(keys),
+        true => Interact::select_item(keys),
     };
     let selected_track_collection = track_collection_map.get(&selection);
     selected_track_collection
-}
-
-fn select_item(items: Vec<&String>) -> String {
-    let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
-        .items(&items)
-        .default(0)
-        .interact_opt()
-        .unwrap();
-    match selection {
-        Some(index) => items[index].to_owned(),
-        None => String::new(),
-    }
 }
 
 async fn send_to_player(track_ids: Vec<SpotifyId>, session: Session, transmitter: Sender<Message>) {
@@ -194,20 +181,33 @@ async fn send_to_player(track_ids: Vec<SpotifyId>, session: Session, transmitter
         let track_result = Track::get(&session, track_spotify_id).await;
         match track_result {
             Ok(track) => {
-                let message = match is_first_track {
-                    true => {
-                        is_first_track = false;
-                        Message::StartPlaying(track)
+                let artist_result = Artist::get(&session, track.artists[0]).await;
+                match artist_result {
+                    Ok(artist) => {
+                        let message = create_message(track, artist, is_first_track);
+                        transmitter.send(message).unwrap_or_else(|err| {
+                            eprintln!("Problem sending track to player: {}", err);
+                        });
                     }
-                    false => Message::AddToQueue(track),
-                };
-                transmitter.send(message).unwrap_or_else(|err| {
-                    eprintln!("Problem sending track to player: {}", err);
-                });
+                    Err(_) => (),
+                }
             }
             Err(_) => (), // TODO: How should I handle?
         }
+        is_first_track = false;
     }
+}
+
+fn create_message(track: Track, artist: Artist, is_first_track: bool) -> Message {
+    let track_data = TrackData {
+        track,
+        artist: artist.name,
+    };
+    let message = match is_first_track {
+        true => Message::StartPlaying(track_data),
+        false => Message::AddToQueue(track_data),
+    };
+    message
 }
 
 pub trait TrackCollection {

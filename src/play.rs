@@ -22,19 +22,19 @@ pub struct Player {}
 impl Player {
     pub fn new(session: Session, receiver: Receiver<Message>) -> Player {
         let mut player = create_player(session);
-        let mut track_queue: LinkedList<Track> = LinkedList::new();
+        let mut track_queue: LinkedList<TrackData> = LinkedList::new();
         let mut events = player.get_player_event_channel();
         let mut spinner = ProgressBar::new_spinner();
         let builder = thread::Builder::new().name("track_player".into());
         let _thread = builder.spawn(move || loop {
             match receiver.try_recv() {
                 Ok(message) => match message {
-                    Message::AddToQueue(track) => track_queue.push_back(track),
-                    Message::StartPlaying(track) => {
+                    Message::AddToQueue(track_data) => track_queue.push_back(track_data),
+                    Message::StartPlaying(track_data) => {
                         track_queue.clear();
                         spinner = Interact::start_player_spinner();
-                        spinner.set_message(track.name);
-                        player.load(track.id, true, 0);
+                        spinner.set_message(track_data.track.name + " - " + &track_data.artist.to_string());
+                        player.load(track_data.track.id, true, 0);
                     }
                     Message::StopPlaying => {
                         player.stop();
@@ -51,9 +51,9 @@ impl Player {
             match events.try_recv() {
                 Ok(PlayerEvent::EndOfTrack { .. }) => {
                     if !track_queue.is_empty() {
-                        let track = track_queue.pop_front().unwrap();
-                        spinner.set_message(track.name);
-                        player.load(track.id, true, 0);
+                        let track_data = track_queue.pop_front().unwrap();
+                        spinner.set_message(track_data.track.name + " - " + &track_data.artist.to_string());
+                        player.load(track_data.track.id, true, 0);
                     }
                 }
                 Ok(_) => (),
@@ -76,8 +76,13 @@ fn create_player(session: Session) -> LibrePlayer {
 }
 
 pub enum Message {
-    StartPlaying(Track),
+    StartPlaying(TrackData),
     StopPlaying,
-    AddToQueue(Track),
+    AddToQueue(TrackData),
     Quit,
+}
+
+pub struct TrackData {
+    pub track: Track,
+    pub artist: String,
 }
