@@ -1,4 +1,4 @@
-use std::io::{self, Write};
+use std::{io::{self, Write}, time::Duration};
 use console::style;
 use dialoguer::{Password, FuzzySelect, theme::ColorfulTheme};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -36,10 +36,10 @@ pub fn print_prompt() {
 pub fn start_session_spinner() -> ProgressBar {
     let spinner = ProgressBar::new_spinner();
     spinner.set_style(
-        ProgressStyle::default_spinner().template("{spinner:.green} {msg:.green}")
+        ProgressStyle::with_template("{spinner:.green} {msg:.green}").unwrap()
     );
     spinner.set_message("Starting session...");
-    spinner.enable_steady_tick(120);
+    spinner.enable_steady_tick(Duration::from_millis(120));
     spinner
 }
 
@@ -50,9 +50,9 @@ pub fn stop_session_spinner(spinner: ProgressBar) {
 pub fn start_player_spinner() -> ProgressBar {
     let spinner = ProgressBar::new_spinner();
     spinner.set_style(
-        ProgressStyle::default_spinner().template("{spinner:.blue} {msg:.blue}")
+        ProgressStyle::with_template("{spinner:.blue} {msg:.blue}").unwrap()
     );
-    spinner.enable_steady_tick(120);
+    spinner.enable_steady_tick(Duration::from_millis(120));
     spinner
 }
 
