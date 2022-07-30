@@ -1,6 +1,6 @@
 use librespot::core::{cache::Cache, config::SessionConfig, session::Session};
 use librespot::discovery::Credentials;
-use std::path::Path;
+use std::path::PathBuf;
 use std::process::exit;
 use std::sync::mpsc::{self, Receiver, Sender};
 
@@ -9,8 +9,8 @@ mod config;
 mod fetch;
 mod interact;
 mod invoke;
-mod play;
 mod model;
+mod play;
 
 use command::Command;
 use config as Config;
@@ -23,8 +23,8 @@ use crate::interact::println;
 
 #[tokio::main]
 async fn main() {
-    let spinner = Interact::start_session_spinner();
     let session = create_session().await;
+    let spinner = Interact::start_session_spinner();
     let fetcher = Fetcher::new(&session).await.unwrap();
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
     let _player = Player::new(session.clone(), rx);
@@ -46,7 +46,7 @@ async fn main() {
 }
 
 async fn create_session() -> Session {
-    let path = Path::new(config::PATH_STRING);
+    let path = get_credentials_path();
     let cache = Cache::new(Some(path), None, None, None).ok();
     let credentials = get_credentials(&cache);
     let session_config = SessionConfig::default();
@@ -60,14 +60,18 @@ async fn create_session() -> Session {
     }
 }
 
-fn get_credentials(cache: &Option<Cache>) -> Credentials {
-    let credential_path_string = Config::PATH_STRING.to_owned() + Config::CREDENTIALS_FILE;
-    if !Path::new(credential_path_string.as_str()).exists() {
-        return login_user_pass();
-    }
+fn get_credentials_path() -> PathBuf {
+    let mut local_data_path = dirs::data_local_dir().unwrap();
+    local_data_path.push(Config::APP_NAME);
+    local_data_path
+}
 
-    let saved_credentials = cache.as_ref().unwrap().credentials().unwrap();
-    return saved_credentials;
+fn get_credentials(cache: &Option<Cache>) -> Credentials {
+    let saved_credentials = cache.as_ref().unwrap().credentials();
+    match saved_credentials {
+        Some(sc) => sc,
+        None => login_user_pass(),
+    }
 }
 
 fn login_user_pass() -> Credentials {
