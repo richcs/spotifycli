@@ -51,24 +51,32 @@ impl Invoker {
         }
         let first_arg = args.remove(0);
         let joined_args = args.join(" ");
-        match first_arg.as_str() {
+        match first_arg.as_str() { // TODO: Merge these somehow
             "playlist" => {
-                play_track_collection(
-                    self.fetcher.playlists(),
-                    joined_args,
-                    &self.session,
-                    &self.transmitter,
-                )
-                .await;
+                let track_collection =
+                    select_track_collection(self.fetcher.playlists(), joined_args);
+                match track_collection {
+                    None => {
+                        println("Not found");
+                        return;
+                    }
+                    Some(tc) => {
+                        play_track_collection(tc, &self.session, &self.transmitter).await;
+                    }
+                }
             }
             "album" => {
-                play_track_collection(
-                    self.fetcher.albums(),
-                    joined_args,
-                    &self.session,
-                    &self.transmitter,
-                )
-                .await;
+                let track_collection = 
+                    select_track_collection(self.fetcher.albums(), joined_args);
+                match track_collection {
+                    None => {
+                        println("Not found");
+                        return;
+                    }
+                    Some(tc) => {
+                        play_track_collection(tc, &self.session, &self.transmitter).await;
+                    }
+                }
             }
             _ => {
                 self.unknown();
@@ -133,24 +141,17 @@ impl Invoker {
 }
 
 async fn play_track_collection(
-    track_collection_map: &HashMap<String, impl TrackCollection>,
-    name: String,
+    tc: &impl TrackCollection,
     session: &Session,
     transmitter: &Sender<Message>,
 ) {
-    let selected_track_collection = select_track_collection(track_collection_map, name);
-    match selected_track_collection {
-        None => println("Not found"),
-        Some(tc) => {
-            let tc_display = String::from("Playing ") + &tc.name() + " (press any key to stop)";
-            println(tc_display.as_str());
-            let tracks = tc.tracks().clone();
-            let session = session.clone();
-            let transmitter = transmitter.clone();
-            thread::spawn(move || block_on(send_to_player(tracks, session, transmitter)));
-            // This works?
-        }
-    }
+    let tc_display = String::from("Playing ") + &tc.name() + " (press any key to stop)";
+    println(tc_display.as_str());
+    let tracks = tc.tracks().clone();
+    let session = session.clone();
+    let transmitter = transmitter.clone();
+    thread::spawn(move || block_on(send_to_player(tracks, session, transmitter)));
+    // This works?
 }
 
 fn select_track_collection(
@@ -187,11 +188,7 @@ fn select_item(items: Vec<&String>) -> String {
     }
 }
 
-async fn send_to_player(
-    track_ids: Vec<SpotifyId>,
-    session: Session,
-    transmitter: Sender<Message>,
-) {
+async fn send_to_player(track_ids: Vec<SpotifyId>, session: Session, transmitter: Sender<Message>) {
     let mut is_first_track = true;
     for track_spotify_id in track_ids {
         let track_result = Track::get(&session, track_spotify_id).await;

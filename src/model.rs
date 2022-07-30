@@ -1,5 +1,3 @@
-use librespot::metadata::Album;
-
 #[derive(serde::Deserialize)]
 pub struct PlaylistsModel {
     pub items: Vec<PlaylistModel>,
