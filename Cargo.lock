@@ -2097,6 +2097,7 @@ dependencies = [
  "futures",
  "indicatif",
  "librespot",
+ "rand",
  "reqwest",
  "serde",
  "serde_json",

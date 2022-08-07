@@ -3,6 +3,8 @@ use futures::executor::block_on;
 use librespot::core::session::Session;
 use librespot::core::spotify_id::SpotifyId;
 use librespot::metadata::{Album, Artist, Metadata, Playlist, Track};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::collections::HashMap;
 use std::sync::mpsc::Sender;
 use std::{process, thread};
@@ -10,8 +12,8 @@ use std::{process, thread};
 use crate::command::Command;
 use crate::command::CommandType;
 use crate::fetch::Fetcher;
-use crate::interact::{self as Interact, print_help};
 use crate::interact::println;
+use crate::interact::{self as Interact, print_help};
 use crate::play::{Message, TrackData};
 
 pub struct Invoker {
@@ -50,9 +52,19 @@ impl Invoker {
             return;
         }
         let first_arg = args.remove(0);
+        let mut shuffle = false;
+        match args.get(0) {
+            None => (),
+            Some(arg) => {
+                if arg == "shuffle" {
+                    shuffle = true;
+                    args.remove(0);
+                }
+            }
+        }
         let joined_args = args.join(" ");
         match first_arg.as_str() {
-            // TODO: Merge these somehow
+            // TODO: Merge these somehow (or maybe not...)
             "playlist" => {
                 let track_collection =
                     select_track_collection(self.fetcher.playlists(), joined_args);
@@ -62,7 +74,7 @@ impl Invoker {
                         return;
                     }
                     Some(tc) => {
-                        play_track_collection(tc, &self.session, &self.transmitter).await;
+                        play_track_collection(tc, shuffle, &self.session, &self.transmitter).await;
                     }
                 }
             }
@@ -74,7 +86,7 @@ impl Invoker {
                         return;
                     }
                     Some(tc) => {
-                        play_track_collection(tc, &self.session, &self.transmitter).await;
+                        play_track_collection(tc, false, &self.session, &self.transmitter).await;
                     }
                 }
             }
@@ -146,12 +158,14 @@ impl Invoker {
 
 async fn play_track_collection(
     tc: &impl TrackCollection,
+    shuffle: bool,
     session: &Session,
     transmitter: &Sender<Message>,
 ) {
-    let tc_display = String::from("Playing ") + &tc.name() + " (press any key to stop)";
-    println(tc_display.as_str());
-    let tracks = tc.tracks().clone();
+    let tracks = match shuffle {
+        false => tc.tracks(),
+        true => tc.shuffled_tracks(),
+    };
     let session = session.clone();
     let transmitter = transmitter.clone();
     thread::spawn(move || block_on(send_to_player(tracks, session, transmitter)));
@@ -216,13 +230,21 @@ fn create_message(track: Track, artist: Artist, is_first_track: bool) -> Message
 }
 
 pub trait TrackCollection {
-    fn tracks(&self) -> &Vec<SpotifyId>;
+    fn tracks(&self) -> Vec<SpotifyId>;
+    fn shuffled_tracks(&self) -> Vec<SpotifyId>;
     fn name(&self) -> String;
 }
 
 impl TrackCollection for Album {
-    fn tracks(&self) -> &Vec<SpotifyId> {
-        &self.tracks
+    fn tracks(&self) -> Vec<SpotifyId> {
+        self.tracks.clone()
+    }
+
+    fn shuffled_tracks(&self) -> Vec<SpotifyId> {
+        let mut rng = thread_rng();
+        let mut shuffled_tracks = self.tracks.clone();
+        shuffled_tracks.shuffle(&mut rng);
+        shuffled_tracks
     }
 
     fn name(&self) -> String {
@@ -231,8 +253,15 @@ impl TrackCollection for Album {
 }
 
 impl TrackCollection for Playlist {
-    fn tracks(&self) -> &Vec<SpotifyId> {
-        &self.tracks
+    fn tracks(&self) -> Vec<SpotifyId> {
+        self.tracks.clone()
+    }
+
+    fn shuffled_tracks(&self) -> Vec<SpotifyId> {
+        let mut rng = thread_rng();
+        let mut shuffled_tracks = self.tracks.clone();
+        shuffled_tracks.shuffle(&mut rng);
+        shuffled_tracks
     }
 
     fn name(&self) -> String {
