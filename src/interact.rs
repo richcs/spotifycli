@@ -57,7 +57,7 @@ pub fn start_player_spinner() -> ProgressBar {
 }
 
 pub fn stop_player_spinner(spinner: &ProgressBar) {
-    spinner.finish();
+    spinner.finish_and_clear();
     println("Stopped");
     print_prompt();
 }
