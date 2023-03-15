@@ -50,7 +50,6 @@ Available Commands:
 
 - [ ] Make application stable enough for release
 - [ ] Add more features (shuffle, wider library, etc.)
-- [ ] Add unit testing
 
 
 
